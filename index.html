@@ -121,6 +121,10 @@
                 <span id="copyMessage" class="absolute bottom-2 left-1/2 -translate-x-1/2 p-2 bg-green-500 text-white text-xs rounded-lg hidden">Copied!</span>
             </div>
             <p class="text-center text-gray-500 text-sm">Need more? Automate your entire workflow with <a href="#" class="text-indigo-400 hover:underline font-semibold">Zappies-AI</a>.</p>
+             <!-- Added a button to clear the session -->
+            <div class="flex justify-center mt-4">
+                 <button id="clearSessionBtn" class="text-sm text-indigo-400 hover:text-indigo-300 transition-colors">Generate content for a different user</button>
+            </div>
         </div>
         
         <!-- Custom Alert/Error Message Box -->
@@ -178,6 +182,10 @@
             const leadSubmitBtn = document.getElementById('leadSubmitBtn');
             const leadSubmitBtnText = document.getElementById('leadSubmitBtnText');
             const leadLoadingSpinner = document.getElementById('leadLoadingSpinner');
+            const clearSessionBtn = document.getElementById('clearSessionBtn');
+            
+            const leadNameInput = document.getElementById('leadName');
+            const leadEmailInput = document.getElementById('leadEmail');
 
             const inputMethodRadios = document.querySelectorAll('input[name="inputMethod"]');
             const urlInputContainer = document.getElementById('urlInputContainer');
@@ -186,7 +194,7 @@
 
             // IMPORTANT: Replace with your actual Supabase project URL and public anon key
             const SUPABASE_URL = 'https://dgjkhfgywtbrfhgusjyi.supabase.co';
-            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRnamtoZmd5d3RicmZoZ3VzanlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ1NTc0ODcsImV4cCI6MjA3MDEzMzQ4N30.PyjzdSRuvZ0tkAd5skKVBrmC1lazh1uf9GI5KHiQewE';
+            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRnamtoZmd5d3RicmZoZ3VzanlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ1NTc0ODcsImV4cCI6MjA3MDEzMzQ4N30.PyjzdSRuvZ0tkAd5skKVBrmC1lazh1uf9GI5KHiQewE'
             let supabase;
 
             try {
@@ -213,6 +221,20 @@
             messageBoxClose.addEventListener('click', () => {
                 messageBox.classList.add('hidden');
             });
+            
+            // Function to check and set the session data
+            const checkSession = () => {
+                const storedName = localStorage.getItem('leadName');
+                const storedEmail = localStorage.getItem('leadEmail');
+                
+                if (storedName && storedEmail) {
+                    leadNameInput.value = storedName;
+                    leadEmailInput.value = storedEmail;
+                }
+            };
+            
+            // Call checkSession on page load
+            checkSession();
 
             inputMethodRadios.forEach(radio => {
                 radio.addEventListener('change', (e) => {
@@ -232,7 +254,7 @@
 
             urlInputContainer.classList.remove('hidden');
 
-            // Main form submission listener - now shows the lead modal
+            // Main form submission listener - checks for session before showing modal
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();
 
@@ -242,67 +264,34 @@
                 tempContentContext = document.getElementById('contentContext').value;
                 tempSelectedMethod = document.querySelector('input[name="inputMethod"]:checked').value;
                 
-                // Show the lead modal before generating content
-                leadModal.classList.remove('hidden');
-            });
+                const storedName = localStorage.getItem('leadName');
+                const storedEmail = localStorage.getItem('leadEmail');
 
-            // Lead form submission listener - now handles Supabase and then the Gemini API call
-            leadForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                
-                const leadName = document.getElementById('leadName').value;
-                const leadEmail = document.getElementById('leadEmail').value;
-
-                leadSubmitBtn.disabled = true;
-                leadSubmitBtnText.textContent = "Saving...";
-                leadLoadingSpinner.classList.remove('hidden');
-
-                // Insert into Supabase
-                if (supabase) {
-                    try {
-                        const { error } = await supabase
-                            .from('leads') // NOTE: You must create a 'leads' table in your Supabase project.
-                            .insert([
-                                { name: leadName, email: leadEmail, business_name: tempBusinessName }
-                            ]);
-                        
-                        if (error) {
-                            console.error('Supabase insert failed:', error.message);
-                            // Do not show an error to the user, just log it. Continue with content generation.
-                        }
-                    } catch (e) {
-                        console.error('Supabase error:', e);
-                    }
+                if (storedName && storedEmail) {
+                    // If session exists, skip the modal and go straight to generation
+                    await generateContent();
                 } else {
-                    console.warn('Supabase client not initialized. Skipping data storage.');
+                    // If no session, show the lead modal
+                    leadModal.classList.remove('hidden');
                 }
-                
-                leadModal.classList.add('hidden');
-                
-                // Now proceed with content generation as before
+            });
+            
+            // Function to handle content generation after lead info is captured
+            const generateContent = async () => {
                 generateBtn.disabled = true;
                 buttonText.textContent = "Generating...";
                 loadingSpinner.classList.remove('hidden');
                 outputContainer.classList.add('hidden');
 
-                // Construct the prompt for the Gemini API
-                let prompt;
-                if (tempSelectedMethod === 'url') {
-                    prompt = `Act as a professional copywriter for a business called "${tempBusinessName}". The business context is based on the following website content: "${tempBusinessContent}". Your task is to generate a high-quality, engaging, and professional piece of content for a "${tempContentType}".
+                const prompt = `Act as a professional copywriter for a business called "${tempBusinessName}". The business context is based on the following website content: "${tempBusinessContent}". Your task is to generate a high-quality, engaging, and professional piece of content for a "${tempContentType}".
                                 Here are some additional details: "${tempContentContext}".
                                 The content should be concise and ready to use. Do not include any extra text before or after the content itself. Just provide the raw content.`;
-                } else {
-                    prompt = `Act as a professional copywriter for a business called "${tempBusinessName}". The business is described as: "${tempBusinessContent}". Your task is to generate a high-quality, engaging, and professional piece of content for a "${tempContentType}".
-                                Here are some additional details: "${tempContentContext}".
-                                The content should be concise and ready to use. Do not include any extra text before or after the content itself. Just provide the raw content.`;
-                }
                 
                 if (!apiKey) {
                     showMessageBox('API Key Missing', 'Please add your Gemini API key to the code.');
-                    // Re-enable button and hide loading state
-                    leadSubmitBtn.disabled = false;
-                    leadSubmitBtnText.textContent = "Submit & Generate";
-                    leadLoadingSpinner.classList.add('hidden');
+                    generateBtn.disabled = false;
+                    buttonText.textContent = "Generate Content";
+                    loadingSpinner.classList.add('hidden');
                     return;
                 }
 
@@ -336,9 +325,6 @@
                             generateBtn.disabled = false;
                             buttonText.textContent = "Generate Content";
                             loadingSpinner.classList.add('hidden');
-                            leadSubmitBtn.disabled = false;
-                            leadSubmitBtnText.textContent = "Submit & Generate";
-                            leadLoadingSpinner.classList.add('hidden');
                             return;
                         }
                     }
@@ -363,9 +349,58 @@
                 generateBtn.disabled = false;
                 buttonText.textContent = "Generate Content";
                 loadingSpinner.classList.add('hidden');
+            };
+
+            // Lead form submission listener - saves to Supabase and local storage, then generates content
+            leadForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const leadName = leadNameInput.value;
+                const leadEmail = leadEmailInput.value;
+
+                leadSubmitBtn.disabled = true;
+                leadSubmitBtnText.textContent = "Saving...";
+                leadLoadingSpinner.classList.remove('hidden');
+                
+                // Save to local storage for future sessions
+                localStorage.setItem('leadName', leadName);
+                localStorage.setItem('leadEmail', leadEmail);
+
+                // Insert into Supabase
+                if (supabase) {
+                    try {
+                        const { error } = await supabase
+                            .from('leads')
+                            .insert([
+                                { name: leadName, email: leadEmail, business_name: tempBusinessName }
+                            ]);
+                        
+                        if (error) {
+                            console.error('Supabase insert failed:', error.message);
+                        }
+                    } catch (e) {
+                        console.error('Supabase error:', e);
+                    }
+                } else {
+                    console.warn('Supabase client not initialized. Skipping data storage.');
+                }
+                
+                leadModal.classList.add('hidden');
+                
+                // Now proceed with content generation
+                await generateContent();
+
+                // Reset lead submit button state
                 leadSubmitBtn.disabled = false;
                 leadSubmitBtnText.textContent = "Submit & Generate";
                 leadLoadingSpinner.classList.add('hidden');
+            });
+            
+            // Clear session button listener
+            clearSessionBtn.addEventListener('click', () => {
+                localStorage.removeItem('leadName');
+                localStorage.removeItem('leadEmail');
+                location.reload(); // Reload the page to reset the form
             });
 
             // Copy to clipboard functionality
