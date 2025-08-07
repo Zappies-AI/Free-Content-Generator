@@ -122,7 +122,7 @@
 
             // API Key will be automatically provided by the Canvas environment
             const apiKey = "";
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-preview-05-20:generateContent?key=${apiKey}`;
 
             const showMessageBox = (title, message) => {
                 messageBoxTitle.textContent = title;
@@ -181,6 +181,7 @@
                         if (retryCount < maxRetries) {
                             const delay = Math.pow(2, retryCount) * 1000; // Exponential delay
                             await new Promise(resolve => setTimeout(resolve, delay));
+                            console.log(`Retry attempt ${retryCount} for API call...`);
                         } else {
                             showMessageBox('API Error', 'The request failed after several retries. Please try again later.');
                             console.error('Final API fetch failed:', error);
@@ -206,6 +207,7 @@
                         outputContainer.classList.remove('hidden');
                     } else {
                         showMessageBox('Generation Error', 'The AI did not provide a valid response. Please try again with a different prompt.');
+                        console.error('API response was not in the expected format:', result);
                     }
                 }
 
