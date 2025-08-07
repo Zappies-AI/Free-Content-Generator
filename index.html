@@ -28,6 +28,9 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        .modal {
+            z-index: 100;
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen flex items-center justify-center p-4">
@@ -121,7 +124,7 @@
         </div>
         
         <!-- Custom Alert/Error Message Box -->
-        <div id="messageBox" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center hidden">
+        <div id="messageBox" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center hidden modal">
             <div class="bg-gray-800 p-6 rounded-lg shadow-xl text-center max-w-sm w-full">
                 <h3 id="messageBoxTitle" class="text-lg font-bold text-white mb-2">Error</h3>
                 <p id="messageBoxContent" class="text-gray-400 mb-4">An unknown error occurred.</p>
@@ -130,10 +133,36 @@
         </div>
 
     </div>
+    
+    <!-- New Modal for Name and Email Capture -->
+    <div id="leadModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center hidden modal">
+        <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl max-w-md w-full space-y-6">
+            <h3 class="text-2xl font-bold text-indigo-400 text-center">Get Your Content!</h3>
+            <p class="text-gray-300 text-center">Enter your details to generate your content and get future updates from us!</p>
+            <form id="leadForm" class="space-y-4">
+                <div>
+                    <label for="leadName" class="block text-sm font-medium text-gray-300 mb-1">Your Name</label>
+                    <input type="text" id="leadName" required class="w-full p-3 rounded-lg bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors">
+                </div>
+                <div>
+                    <label for="leadEmail" class="block text-sm font-medium text-gray-300 mb-1">Your Email</label>
+                    <input type="email" id="leadEmail" required class="w-full p-3 rounded-lg bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors">
+                </div>
+                <div class="flex justify-center">
+                    <button type="submit" id="leadSubmitBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-full shadow-lg transition-all duration-300 flex items-center space-x-2">
+                        <span id="leadSubmitBtnText">Submit & Generate</span>
+                        <div id="leadLoadingSpinner" class="loading-animation hidden"></div>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const form = document.getElementById('contentForm');
+            const leadForm = document.getElementById('leadForm');
             const generateBtn = document.getElementById('generateBtn');
             const loadingSpinner = document.getElementById('loadingSpinner');
             const buttonText = document.getElementById('buttonText');
@@ -144,18 +173,36 @@
             const messageBox = document.getElementById('messageBox');
             const messageBoxTitle = document.getElementById('messageBoxTitle');
             const messageBoxContent = document.getElementById('messageBoxContent');
-            const messageBoxClose = document = document.getElementById('messageBoxClose');
-            
-            // Input choice elements
+            const messageBoxClose = document.getElementById('messageBoxClose');
+            const leadModal = document.getElementById('leadModal');
+            const leadSubmitBtn = document.getElementById('leadSubmitBtn');
+            const leadSubmitBtnText = document.getElementById('leadSubmitBtnText');
+            const leadLoadingSpinner = document.getElementById('leadLoadingSpinner');
+
             const inputMethodRadios = document.querySelectorAll('input[name="inputMethod"]');
             const urlInputContainer = document.getElementById('urlInputContainer');
             const businessContentTextarea = document.getElementById('businessContent');
             const businessContentLabel = document.getElementById('businessContentLabel');
 
+            // IMPORTANT: Replace with your actual Supabase project URL and public anon key
+            const SUPABASE_URL = 'https://dgjkhfgywtbrfhgusjyi.supabase.co';
+            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRnamtoZmd5d3RicmZoZ3VzanlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ1NTc0ODcsImV4cCI6MjA3MDEzMzQ4N30.PyjzdSRuvZ0tkAd5skKVBrmC1lazh1uf9GI5KHiQewE';
+            let supabase;
+
+            try {
+                // Correctly initialize Supabase client by accessing `createClient` from the global `window.supabase` object
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            } catch (e) {
+                console.error("Supabase client creation failed:", e);
+                // The app can still work without Supabase, so we don't block.
+            }
+
             // IMPORTANT: For external hosting, you MUST replace the empty quotes below with your actual Gemini API key.
-            // Example: const apiKey = "YOUR_API_KEY_HERE";
             const apiKey = "AIzaSyAqgQQAiYZOLOy72jrROS17e8W2lg-zAq4";
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+
+            // Variables to store form data temporarily
+            let tempBusinessName, tempBusinessContent, tempContentType, tempContentContext, tempSelectedMethod;
 
             const showMessageBox = (title, message) => {
                 messageBoxTitle.textContent = title;
@@ -167,7 +214,6 @@
                 messageBox.classList.add('hidden');
             });
 
-            // Handle input method selection
             inputMethodRadios.forEach(radio => {
                 radio.addEventListener('change', (e) => {
                     const selectedMethod = e.target.value;
@@ -180,48 +226,85 @@
                         businessContentLabel.textContent = "Business Description";
                         businessContentTextarea.placeholder = "e.g., We sell handcrafted coffee mugs made from recycled materials.";
                     }
-                    businessContentTextarea.value = ''; // Clear the textarea on switch
+                    businessContentTextarea.value = '';
                 });
             });
-            // Initial state
+
             urlInputContainer.classList.remove('hidden');
 
+            // Main form submission listener - now shows the lead modal
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();
 
-                // Get user inputs from the form
-                const businessName = document.getElementById('businessName').value;
-                const businessContent = businessContentTextarea.value;
-                const contentType = document.getElementById('contentType').value;
-                const contentContext = document.getElementById('contentContext').value;
-                const selectedMethod = document.querySelector('input[name="inputMethod"]:checked').value;
+                tempBusinessName = document.getElementById('businessName').value;
+                tempBusinessContent = businessContentTextarea.value;
+                tempContentType = document.getElementById('contentType').value;
+                tempContentContext = document.getElementById('contentContext').value;
+                tempSelectedMethod = document.querySelector('input[name="inputMethod"]:checked').value;
+                
+                // Show the lead modal before generating content
+                leadModal.classList.remove('hidden');
+            });
 
-                // Check if API key is present
-                if (!apiKey) {
-                    showMessageBox('API Key Missing', 'Please add your Gemini API key to the code.');
-                    return;
-                }
+            // Lead form submission listener - now handles Supabase and then the Gemini API call
+            leadForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const leadName = document.getElementById('leadName').value;
+                const leadEmail = document.getElementById('leadEmail').value;
 
-                // Construct the prompt for the Gemini API
-                let prompt;
-                if (selectedMethod === 'url') {
-                    // Prompt for website content
-                    const websiteUrl = document.getElementById('websiteUrl').value;
-                    prompt = `Act as a professional copywriter for a business called "${businessName}". The business context is based on the following website content: "${businessContent}". Your task is to generate a high-quality, engaging, and professional piece of content for a "${contentType}".
-                                Here are some additional details: "${contentContext}".
-                                The content should be concise and ready to use. Do not include any extra text before or after the content itself. Just provide the raw content.`;
+                leadSubmitBtn.disabled = true;
+                leadSubmitBtnText.textContent = "Saving...";
+                leadLoadingSpinner.classList.remove('hidden');
+
+                // Insert into Supabase
+                if (supabase) {
+                    try {
+                        const { error } = await supabase
+                            .from('leads') // NOTE: You must create a 'leads' table in your Supabase project.
+                            .insert([
+                                { name: leadName, email: leadEmail, business_name: tempBusinessName }
+                            ]);
+                        
+                        if (error) {
+                            console.error('Supabase insert failed:', error.message);
+                            // Do not show an error to the user, just log it. Continue with content generation.
+                        }
+                    } catch (e) {
+                        console.error('Supabase error:', e);
+                    }
                 } else {
-                    // Prompt for manual description
-                    prompt = `Act as a professional copywriter for a business called "${businessName}". The business is described as: "${businessContent}". Your task is to generate a high-quality, engaging, and professional piece of content for a "${contentType}".
-                                Here are some additional details: "${contentContext}".
-                                The content should be concise and ready to use. Do not include any extra text before or after the content itself. Just provide the raw content.`;
+                    console.warn('Supabase client not initialized. Skipping data storage.');
                 }
                 
-                // Display loading state
+                leadModal.classList.add('hidden');
+                
+                // Now proceed with content generation as before
                 generateBtn.disabled = true;
                 buttonText.textContent = "Generating...";
                 loadingSpinner.classList.remove('hidden');
                 outputContainer.classList.add('hidden');
+
+                // Construct the prompt for the Gemini API
+                let prompt;
+                if (tempSelectedMethod === 'url') {
+                    prompt = `Act as a professional copywriter for a business called "${tempBusinessName}". The business context is based on the following website content: "${tempBusinessContent}". Your task is to generate a high-quality, engaging, and professional piece of content for a "${tempContentType}".
+                                Here are some additional details: "${tempContentContext}".
+                                The content should be concise and ready to use. Do not include any extra text before or after the content itself. Just provide the raw content.`;
+                } else {
+                    prompt = `Act as a professional copywriter for a business called "${tempBusinessName}". The business is described as: "${tempBusinessContent}". Your task is to generate a high-quality, engaging, and professional piece of content for a "${tempContentType}".
+                                Here are some additional details: "${tempContentContext}".
+                                The content should be concise and ready to use. Do not include any extra text before or after the content itself. Just provide the raw content.`;
+                }
+                
+                if (!apiKey) {
+                    showMessageBox('API Key Missing', 'Please add your Gemini API key to the code.');
+                    // Re-enable button and hide loading state
+                    leadSubmitBtn.disabled = false;
+                    leadSubmitBtnText.textContent = "Submit & Generate";
+                    leadLoadingSpinner.classList.add('hidden');
+                    return;
+                }
 
                 const chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
                 const payload = { contents: chatHistory };
@@ -230,7 +313,6 @@
                 const maxRetries = 5;
                 let response;
 
-                // Exponential backoff for retries
                 while (retryCount < maxRetries) {
                     try {
                         response = await fetch(apiUrl, {
@@ -238,31 +320,30 @@
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(payload)
                         });
-
                         if (response.ok) {
-                            break; // Success, exit the loop
+                            break;
                         } else {
                             throw new Error(`API returned status code: ${response.status}`);
                         }
                     } catch (error) {
                         retryCount++;
                         if (retryCount < maxRetries) {
-                            const delay = Math.pow(2, retryCount) * 1000; // Exponential delay
+                            const delay = Math.pow(2, retryCount) * 1000;
                             await new Promise(resolve => setTimeout(resolve, delay));
                             console.log(`Retry attempt ${retryCount} for API call...`);
                         } else {
                             showMessageBox('API Error', 'The request failed after several retries. Please try again later.');
-                            console.error('Final API fetch failed:', error);
-                            // Hide loading state and re-enable button
                             generateBtn.disabled = false;
                             buttonText.textContent = "Generate Content";
                             loadingSpinner.classList.add('hidden');
+                            leadSubmitBtn.disabled = false;
+                            leadSubmitBtnText.textContent = "Submit & Generate";
+                            leadLoadingSpinner.classList.add('hidden');
                             return;
                         }
                     }
                 }
 
-                // Handle the response
                 if (response && response.ok) {
                     const result = await response.json();
                     
@@ -279,10 +360,12 @@
                     }
                 }
 
-                // Hide loading state and re-enable button
                 generateBtn.disabled = false;
                 buttonText.textContent = "Generate Content";
                 loadingSpinner.classList.add('hidden');
+                leadSubmitBtn.disabled = false;
+                leadSubmitBtnText.textContent = "Submit & Generate";
+                leadLoadingSpinner.classList.add('hidden');
             });
 
             // Copy to clipboard functionality
