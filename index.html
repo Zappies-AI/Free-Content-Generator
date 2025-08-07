@@ -120,7 +120,7 @@
                 <button id="copyBtn" class="absolute top-2 right-2 bg-indigo-500 text-white p-2 rounded-lg text-xs font-semibold hover:bg-indigo-600 transition-colors">Copy</button>
                 <span id="copyMessage" class="absolute bottom-2 left-1/2 -translate-x-1/2 p-2 bg-green-500 text-white text-xs rounded-lg hidden">Copied!</span>
             </div>
-            <p class="text-center text-gray-500 text-sm">Need more? Automate your entire workflow with <a href="#" class="text-indigo-400 hover:underline font-semibold">Zappies-AI</a>.</p>
+            <p class="text-center text-gray-500 text-sm">Need more? Automate your entire workflow with <a href="https://zappies-ai.com" class="text-indigo-400 hover:underline font-semibold">Zappies-AI</a>.</p>
              <!-- Added a button to clear the session -->
             <div class="flex justify-center mt-4">
                  <button id="clearSessionBtn" class="text-sm text-indigo-400 hover:text-indigo-300 transition-colors">Generate content for a different user</button>
@@ -283,7 +283,7 @@
                 loadingSpinner.classList.remove('hidden');
                 outputContainer.classList.add('hidden');
 
-                const prompt = `Act as a professional copywriter for a business called "${tempBusinessName}". The business context is based on the following website content: "${tempBusinessContent}". Your task is to generate a high-quality, engaging, and professional piece of content for a "${tempContentType}".
+                const prompt = `Act as a professional sales agent and copywriter for a business called "${tempBusinessName}". The business context is based on the following website content: "${tempBusinessContent}". Your task is to generate a high-quality, engaging, and professional piece of content for a "${tempContentType}".
                                 Here are some additional details: "${tempContentContext}".
                                 The content should be concise and ready to use. Do not include any extra text before or after the content itself. Just provide the raw content.`;
                 
