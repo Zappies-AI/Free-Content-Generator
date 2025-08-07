@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zappies-AI: Free Content Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .container {
+            max-width: 800px;
+        }
+        .loading-animation {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #fff;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen flex items-center justify-center p-4">
+
+    <!-- Main application container with Zappies-AI branding -->
+    <div class="container bg-gray-800 p-8 md:p-12 rounded-2xl shadow-2xl space-y-8">
+        
+        <!-- Header section -->
+        <header class="text-center">
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-indigo-400 mb-2">Zappies-AI: Free Content Generator</h1>
+            <p class="text-gray-400 text-lg">Get a quick, personalized content "zap" for your business, powered by AI.</p>
+        </header>
+
+        <!-- Form for user input -->
+        <form id="contentForm" class="space-y-6">
+            
+            <!-- Business Name and Description -->
+            <div>
+                <label for="businessName" class="block text-sm font-medium text-gray-300 mb-1">Your Business Name</label>
+                <input type="text" id="businessName" required class="w-full p-3 rounded-lg bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors">
+            </div>
+
+            <div>
+                <label for="businessDesc" class="block text-sm font-medium text-gray-300 mb-1">Briefly describe your business</label>
+                <textarea id="businessDesc" rows="3" required class="w-full p-3 rounded-lg bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"></textarea>
+            </div>
+            
+            <!-- Content Type Selection -->
+            <div>
+                <label for="contentType" class="block text-sm font-medium text-gray-300 mb-1">What type of content do you need?</label>
+                <select id="contentType" class="w-full p-3 rounded-lg bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors">
+                    <option value="WhatsApp Welcome Message">WhatsApp Welcome Message</option>
+                    <option value="Instagram Post Caption">Instagram Post Caption</option>
+                    <option value="Short Promotional Email">Short Promotional Email</option>
+                    <option value="Blog Post Idea">Blog Post Idea</option>
+                    <option value="Product Description">Product Description</option>
+                </select>
+            </div>
+            
+            <!-- Context for content -->
+            <div>
+                <label for="contentContext" class="block text-sm font-medium text-gray-300 mb-1">Additional details for the AI</label>
+                <textarea id="contentContext" rows="2" class="w-full p-3 rounded-lg bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors" placeholder="e.g., Mention our new 20% discount or focus on eco-friendly materials."></textarea>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="flex justify-center">
+                <button type="submit" id="generateBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-full shadow-lg transition-all duration-300 flex items-center space-x-2">
+                    <span id="buttonText">Generate Content</span>
+                    <div id="loadingSpinner" class="loading-animation hidden"></div>
+                </button>
+            </div>
+
+        </form>
+
+        <!-- Output section for generated content -->
+        <div id="outputContainer" class="hidden space-y-4">
+            <h2 class="text-xl font-bold text-gray-200">Your AI-Generated Content:</h2>
+            <div class="relative">
+                <pre id="outputText" class="whitespace-pre-wrap break-words bg-gray-700 p-6 rounded-lg text-gray-300 text-sm overflow-x-auto border border-indigo-500"></pre>
+                <button id="copyBtn" class="absolute top-2 right-2 bg-indigo-500 text-white p-2 rounded-lg text-xs font-semibold hover:bg-indigo-600 transition-colors">Copy</button>
+                <span id="copyMessage" class="absolute bottom-2 left-1/2 -translate-x-1/2 p-2 bg-green-500 text-white text-xs rounded-lg hidden">Copied!</span>
+            </div>
+            <p class="text-center text-gray-500 text-sm">Need more? Automate your entire workflow with <a href="#" class="text-indigo-400 hover:underline font-semibold">Zappies-AI</a>.</p>
+        </div>
+        
+        <!-- Custom Alert/Error Message Box -->
+        <div id="messageBox" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center hidden">
+            <div class="bg-gray-800 p-6 rounded-lg shadow-xl text-center max-w-sm w-full">
+                <h3 id="messageBoxTitle" class="text-lg font-bold text-white mb-2">Error</h3>
+                <p id="messageBoxContent" class="text-gray-400 mb-4">An unknown error occurred.</p>
+                <button id="messageBoxClose" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-full">OK</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('contentForm');
+            const generateBtn = document.getElementById('generateBtn');
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            const buttonText = document.getElementById('buttonText');
+            const outputContainer = document.getElementById('outputContainer');
+            const outputText = document.getElementById('outputText');
+            const copyBtn = document.getElementById('copyBtn');
+            const copyMessage = document.getElementById('copyMessage');
+            const messageBox = document.getElementById('messageBox');
+            const messageBoxTitle = document.getElementById('messageBoxTitle');
+            const messageBoxContent = document.getElementById('messageBoxContent');
+            const messageBoxClose = document.getElementById('messageBoxClose');
+
+            // API Key will be automatically provided by the Canvas environment
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+            const showMessageBox = (title, message) => {
+                messageBoxTitle.textContent = title;
+                messageBoxContent.textContent = message;
+                messageBox.classList.remove('hidden');
+            };
+
+            messageBoxClose.addEventListener('click', () => {
+                messageBox.classList.add('hidden');
+            });
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                // Get user inputs from the form
+                const businessName = document.getElementById('businessName').value;
+                const businessDesc = document.getElementById('businessDesc').value;
+                const contentType = document.getElementById('contentType').value;
+                const contentContext = document.getElementById('contentContext').value;
+
+                // Construct the prompt for the Gemini API
+                const prompt = `Act as a professional copywriter for a business called "${businessName}". The business is described as: "${businessDesc}". 
+                                Your task is to generate a high-quality, engaging, and professional piece of content for a "${contentType}".
+                                Here are some additional details: "${contentContext}".
+                                The content should be concise and ready to use. Do not include any extra text before or after the content itself. Just provide the raw content.`;
+
+                // Display loading state
+                generateBtn.disabled = true;
+                buttonText.textContent = "Generating...";
+                loadingSpinner.classList.remove('hidden');
+                outputContainer.classList.add('hidden');
+
+                const chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+                const payload = { contents: chatHistory };
+
+                let retryCount = 0;
+                const maxRetries = 5;
+                let response;
+
+                // Exponential backoff for retries
+                while (retryCount < maxRetries) {
+                    try {
+                        response = await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+
+                        if (response.ok) {
+                            break; // Success, exit the loop
+                        } else {
+                            throw new Error(`API returned status code: ${response.status}`);
+                        }
+                    } catch (error) {
+                        retryCount++;
+                        if (retryCount < maxRetries) {
+                            const delay = Math.pow(2, retryCount) * 1000; // Exponential delay
+                            await new Promise(resolve => setTimeout(resolve, delay));
+                        } else {
+                            showMessageBox('API Error', 'The request failed after several retries. Please try again later.');
+                            console.error('Final API fetch failed:', error);
+                            // Hide loading state and re-enable button
+                            generateBtn.disabled = false;
+                            buttonText.textContent = "Generate Content";
+                            loadingSpinner.classList.add('hidden');
+                            return;
+                        }
+                    }
+                }
+
+                // Handle the response
+                if (response && response.ok) {
+                    const result = await response.json();
+                    
+                    if (result.candidates && result.candidates.length > 0 &&
+                        result.candidates[0].content && result.candidates[0].content.parts &&
+                        result.candidates[0].content.parts.length > 0) {
+                        
+                        const text = result.candidates[0].content.parts[0].text;
+                        outputText.textContent = text;
+                        outputContainer.classList.remove('hidden');
+                    } else {
+                        showMessageBox('Generation Error', 'The AI did not provide a valid response. Please try again with a different prompt.');
+                    }
+                }
+
+                // Hide loading state and re-enable button
+                generateBtn.disabled = false;
+                buttonText.textContent = "Generate Content";
+                loadingSpinner.classList.add('hidden');
+            });
+
+            // Copy to clipboard functionality
+            copyBtn.addEventListener('click', () => {
+                const textToCopy = outputText.textContent;
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    copyMessage.classList.remove('hidden');
+                    setTimeout(() => {
+                        copyMessage.classList.add('hidden');
+                    }, 2000);
+                }).catch(err => {
+                    showMessageBox('Copy Error', 'Could not copy text to clipboard. Please copy it manually.');
+                    console.error('Failed to copy text: ', err);
+                });
+            });
+        });
+    </script>
+</body>
+</html>
