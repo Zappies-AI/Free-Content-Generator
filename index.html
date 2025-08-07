@@ -39,20 +39,46 @@
         <header class="text-center">
             <h1 class="text-3xl sm:text-4xl font-extrabold text-indigo-400 mb-2">Zappies-AI: Free Content Generator</h1>
             <p class="text-gray-400 text-lg">Get a quick, personalized content "zap" for your business, powered by AI.</p>
+            <p class="mt-4 text-white text-md font-semibold">⚡ This is a demo of Zappies-AI! Our WhatsApp automation service can do this and more. Sign up now and get 50% off your first month! ⚡</p>
         </header>
 
         <!-- Form for user input -->
         <form id="contentForm" class="space-y-6">
             
-            <!-- Business Name and Description -->
+            <!-- Business Name Input -->
             <div>
                 <label for="businessName" class="block text-sm font-medium text-gray-300 mb-1">Your Business Name</label>
                 <input type="text" id="businessName" required class="w-full p-3 rounded-lg bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors">
             </div>
 
+            <!-- Choice between Website URL and Manual Description -->
             <div>
-                <label for="businessDesc" class="block text-sm font-medium text-gray-300 mb-1">Briefly describe your business</label>
-                <textarea id="businessDesc" rows="3" required class="w-full p-3 rounded-lg bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"></textarea>
+                <label class="block text-sm font-medium text-gray-300 mb-2">How would you like to provide business context?</label>
+                <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
+                    <label class="flex items-center space-x-2">
+                        <input type="radio" name="inputMethod" value="url" class="form-radio text-indigo-500 h-4 w-4" checked>
+                        <span class="text-gray-300">Website URL</span>
+                    </label>
+                    <label class="flex items-center space-x-2">
+                        <input type="radio" name="inputMethod" value="manual" class="form-radio text-indigo-500 h-4 w-4">
+                        <span class="text-gray-300">Manual Description</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Website URL and Content Input -->
+            <div id="urlInputContainer">
+                <label for="websiteUrl" class="block text-sm font-medium text-gray-300 mb-1">Website URL</label>
+                <input type="url" id="websiteUrl" placeholder="https://www.yourbusiness.com" class="w-full p-3 rounded-lg bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors">
+                <p class="text-sm text-gray-400 mt-2">
+                    Due to browser security, please copy and paste the main content from the website into the text area below.
+                </p>
+            </div>
+
+            <!-- Manual Description Input (also used for website content) -->
+            <div id="descriptionInputContainer">
+                <label for="businessContent" class="block text-sm font-medium text-gray-300 mb-1" id="businessContentLabel">Business Description</label>
+                <textarea id="businessContent" rows="5" required class="w-full p-3 rounded-lg bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors" placeholder="e.g., We sell handcrafted coffee mugs made from recycled materials."></textarea>
             </div>
             
             <!-- Content Type Selection -->
@@ -118,11 +144,17 @@
             const messageBox = document.getElementById('messageBox');
             const messageBoxTitle = document.getElementById('messageBoxTitle');
             const messageBoxContent = document.getElementById('messageBoxContent');
-            const messageBoxClose = document.getElementById('messageBoxClose');
+            const messageBoxClose = document = document.getElementById('messageBoxClose');
+            
+            // Input choice elements
+            const inputMethodRadios = document.querySelectorAll('input[name="inputMethod"]');
+            const urlInputContainer = document.getElementById('urlInputContainer');
+            const businessContentTextarea = document.getElementById('businessContent');
+            const businessContentLabel = document.getElementById('businessContentLabel');
 
             // IMPORTANT: For external hosting, you MUST replace the empty quotes below with your actual Gemini API key.
             // Example: const apiKey = "YOUR_API_KEY_HERE";
-            const apiKey = "AIzaSyAqgQQAiYZOLOy72jrROS17e8W2lg-zAq4"; 
+            const apiKey = "AIzaSyAqgQQAiYZOLOy72jrROS17e8W2lg-zAq4";
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
             const showMessageBox = (title, message) => {
@@ -135,14 +167,34 @@
                 messageBox.classList.add('hidden');
             });
 
+            // Handle input method selection
+            inputMethodRadios.forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    const selectedMethod = e.target.value;
+                    if (selectedMethod === 'url') {
+                        urlInputContainer.classList.remove('hidden');
+                        businessContentLabel.textContent = "Website Content";
+                        businessContentTextarea.placeholder = "Paste the main content from the website here.";
+                    } else {
+                        urlInputContainer.classList.add('hidden');
+                        businessContentLabel.textContent = "Business Description";
+                        businessContentTextarea.placeholder = "e.g., We sell handcrafted coffee mugs made from recycled materials.";
+                    }
+                    businessContentTextarea.value = ''; // Clear the textarea on switch
+                });
+            });
+            // Initial state
+            urlInputContainer.classList.remove('hidden');
+
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();
 
                 // Get user inputs from the form
                 const businessName = document.getElementById('businessName').value;
-                const businessDesc = document.getElementById('businessDesc').value;
+                const businessContent = businessContentTextarea.value;
                 const contentType = document.getElementById('contentType').value;
                 const contentContext = document.getElementById('contentContext').value;
+                const selectedMethod = document.querySelector('input[name="inputMethod"]:checked').value;
 
                 // Check if API key is present
                 if (!apiKey) {
@@ -151,11 +203,20 @@
                 }
 
                 // Construct the prompt for the Gemini API
-                const prompt = `Act as a professional copywriter for a business called "${businessName}". The business is described as: "${businessDesc}". 
-                                Your task is to generate a high-quality, engaging, and professional piece of content for a "${contentType}".
+                let prompt;
+                if (selectedMethod === 'url') {
+                    // Prompt for website content
+                    const websiteUrl = document.getElementById('websiteUrl').value;
+                    prompt = `Act as a professional copywriter for a business called "${businessName}". The business context is based on the following website content: "${businessContent}". Your task is to generate a high-quality, engaging, and professional piece of content for a "${contentType}".
                                 Here are some additional details: "${contentContext}".
                                 The content should be concise and ready to use. Do not include any extra text before or after the content itself. Just provide the raw content.`;
-
+                } else {
+                    // Prompt for manual description
+                    prompt = `Act as a professional copywriter for a business called "${businessName}". The business is described as: "${businessContent}". Your task is to generate a high-quality, engaging, and professional piece of content for a "${contentType}".
+                                Here are some additional details: "${contentContext}".
+                                The content should be concise and ready to use. Do not include any extra text before or after the content itself. Just provide the raw content.`;
+                }
+                
                 // Display loading state
                 generateBtn.disabled = true;
                 buttonText.textContent = "Generating...";
