@@ -120,8 +120,9 @@
             const messageBoxContent = document.getElementById('messageBoxContent');
             const messageBoxClose = document.getElementById('messageBoxClose');
 
-            // API Key will be automatically provided by the Canvas environment
-            const apiKey = "AIzaSyAqgQQAiYZOLOy72jrROS17e8W2lg-zAq4";
+            // IMPORTANT: For external hosting, you MUST replace the empty quotes below with your actual Gemini API key.
+            // Example: const apiKey = "YOUR_API_KEY_HERE";
+            const apiKey = "AIzaSyAqgQQAiYZOLOy72jrROS17e8W2lg-zAq4"; 
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-preview-05-20:generateContent?key=${apiKey}`;
 
             const showMessageBox = (title, message) => {
@@ -142,6 +143,12 @@
                 const businessDesc = document.getElementById('businessDesc').value;
                 const contentType = document.getElementById('contentType').value;
                 const contentContext = document.getElementById('contentContext').value;
+
+                // Check if API key is present
+                if (!apiKey) {
+                    showMessageBox('API Key Missing', 'Please add your Gemini API key to the code.');
+                    return;
+                }
 
                 // Construct the prompt for the Gemini API
                 const prompt = `Act as a professional copywriter for a business called "${businessName}". The business is described as: "${businessDesc}". 
